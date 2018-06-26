@@ -13,6 +13,15 @@ install: ./nextflow
 update: ./nextflow
 	./nextflow self-update
 
+CRONFILE:=cron.job
+CRONINTERVAL:=*/5 * * * *
+CRONCMD:=cd $(shell pwd); make run
+cron:
+	crontab -l > old.cron.$$(date +"%Y-%m-%d_%H-%M-%S") ; \
+	croncmd='$(CRONINTERVAL) $(CRONCMD)'; \
+	echo "$${croncmd}" > "$(CRONFILE)" && \
+	crontab "$(CRONFILE)"
+
 
 # ~~~~~ RUN ~~~~~ #
 run: install
@@ -22,5 +31,5 @@ run: install
 	logfile="$${logdir}/nextflow.log" ; \
 	stdoutlogfile="$${logdir}/nextflow.stdout.log" ; \
 	export NXF_WORK="$${logdir}" ; \
-	./nextflow -log "$${logfile}" run main.nf -with-notification -with-trace -with-timeline -with-report --logSubDir "$(TIMESTAMP)" --externalConfigFile "$(CONFIG)" $(EP) | \
+	./nextflow -log "$${logfile}" run main.nf -with-trace -with-timeline -with-report --logSubDir "$(TIMESTAMP)" --externalConfigFile "$(CONFIG)" $(EP) | \
 	tee -a "$${stdoutlogfile}"

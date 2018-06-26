@@ -2,3 +2,5 @@ nextflow
 .nextflow
 logs/
 .lock
+cron.job
+old.cron.*
