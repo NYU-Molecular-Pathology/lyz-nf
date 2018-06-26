@@ -1,8 +1,11 @@
 SHELL:=/bin/bash
 LOGDIR:=logs
 TIMESTAMP:=$(shell date +"%Y-%m-%d_%H-%M-%S")
+
+# un-comment this and change it for your config file:
 # CONFIG:=config.json
 CONFIG:=/ifs/data/molecpathlab/private_data/lyz-nf-config.json
+
 
 # ~~~~~ SETUP ~~~~~ #
 ./nextflow:
