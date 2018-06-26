@@ -66,3 +66,19 @@ make run CONFIG=/path/to/config.json
 ```
 
 - NOTE: For my convenience, the path to the config I use on my system is currently hard-coded into `Makefile`. You can modify this for your usages instead.
+
+# Notes
+
+- To ensure that multiple instances of `lyz-nf` are not running simultaneously (e.g. started by `cron` automatically before the previous finished), a lock file is used to prevent task execution by other instances of the program.
+
+- `lyz-nf` is configured to automatically send email output with execution summary information, configured as `<system username>@nyumc.org`. You can provide your own email address with the `emailFrom` and `emailTo` Nextflow arguments. This, along with other Nextflow parameters, can be passed via the Makefile with the `EP` argument like this:
+
+```
+make run EP='--emailFrom bob@server.com --emailTo mary@server.com'
+```
+
+# Software
+
+- Java 8 (for Nextflow)
+
+Tested on CentOS 6, should work on any Nextflow-compatible system with `bash`, `make`, and `cron`.
