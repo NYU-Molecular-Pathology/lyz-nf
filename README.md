@@ -49,6 +49,14 @@ This will:
 
 - create a new `crontab` entry from the file `cron.job`
 
+You can also configure `crontab` yourself manually to run the program as per your use case. An example `crontab` command might look like:
+
+```
+0 12,23 * * * . /home/kellys04/.bash_profile; cd /production/lyz-nf; make run >/dev/null 2>&1
+```
+
+to run the program at 12:00 and 23:00 every day.
+
 ## Configuration
 
 External configurations for your tasks can be saved in a file such as `config.json` (example included). You can direct the program to use this file by including it under the Makefile variable `CONFIG`. Example:
