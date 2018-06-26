@@ -23,63 +23,61 @@ def productionDirNGS50 = params.externalConfig.productionDirNGS50
 
 
 // ~~~~~ TASKS TO RUN ~~~~~ //
-process sync_demultiplexing {
-    input:
-    val(x) from Channel.from('')
+// only create processes if not locked
+if ( isLocked == false ){
+    process sync_demultiplexing {
+        input:
+        val(x) from Channel.from('')
 
-    when:
-    isLocked == false
+        script:
+        """
+        rsync --dry-run -vrthP -e ssh "${productionDir}/" "${params.username}"@"${syncServer}":"${MCITdir}/" \
+        --include="Demultiplexing" \
+        --include="Demultiplexing/*" \
+        --include="Demultiplexing/*/output/***" \
+        --exclude="*:*" \
+        --exclude="*"
+        """
+    }
 
-    script:
-    """
-    rsync --dry-run -vrthP -e ssh "${productionDir}/" "${params.username}"@"${syncServer}":"${MCITdir}/" \
-    --include="Demultiplexing" \
-    --include="Demultiplexing/*" \
-    --include="Demultiplexing/*/output/***" \
-    --exclude="*:*" \
-    --exclude="*"
-    """
+    process sync_NGS580 {
+        input:
+        val(x) from Channel.from('')
+
+        script:
+        """
+        rsync --dry-run -vrthPL -e ssh "${productionDir}/" "${params.username}"@"${syncServer}":"${MCITdir}/" \
+        --include="NGS580" \
+        --include="NGS580/*" \
+        --include="NGS580/*/output/***" \
+        --exclude="*:*" \
+        --exclude="*"
+        """
+    }
+
+    process sync_NGS50 {
+        input:
+        val(x) from Channel.from('')
+
+        script:
+        """
+        rsync --dry-run -vrthP -e ssh "${productionDirNGS50}/" "${params.username}"@"${syncServer}":"${MCITdir}/IonTorrent/NGS50/output/" \
+        --exclude='.git*' \
+        --exclude='*old' \
+        --exclude='*oldbad' \
+        --exclude='*_old' \
+        --exclude='*_test1' \
+        --exclude='*_test' \
+        --exclude='test*' \
+        --exclude="*:*"
+        """
+    }
+} else {
+    log.info "Workflow is locked; another instance of this workflow is probably running. No tasks will be run"
 }
 
-process sync_NGS580 {
-    input:
-    val(x) from Channel.from('')
 
-    when:
-    isLocked == false
-
-    script:
-    """
-    rsync --dry-run -vrthPL -e ssh "${productionDir}/ "${params.username}"@"${syncServer}":"${MCITdir}/" \
-    --include="NGS580" \
-    --include="NGS580/*" \
-    --include="NGS580/*/output/***" \
-    --exclude="*:*" \
-    --exclude="*"
-    """
-}
-
-process sync_NGS50 {
-    input:
-    val(x) from Channel.from('')
-
-    when:
-    isLocked == false
-
-    script:
-    """
-    rsync --dry-run -vrthP -e ssh "${productionDirNGS50}/" "${params.username}"@"${syncServer}":"${MCITdir}/IonTorrent/NGS50/output/" \
-    --exclude='.git*' \
-    --exclude='*old' \
-    --exclude='*oldbad' \
-    --exclude='*_old' \
-    --exclude='*_test1' \
-    --exclude='*_test' \
-    --exclude='test*' \
-    --exclude="*:*"
-    """
-}
-
+// ~~~~~ CLEANUP ~~~~~ //
 workflow.onComplete {
     log.info "Workflow completed"
 
@@ -143,7 +141,7 @@ workflow.onComplete {
         sendMail {
             to "${params.emailTo}"
             from "${params.emailFrom}"
-            subject "[${params.workflowLabel}] ${status}"
+            subject "[${params.workflowLabel}] ${status} (${params.logSubDir})"
             body "${msg}"
         }
     }
