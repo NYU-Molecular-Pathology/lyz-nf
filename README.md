@@ -1,6 +1,6 @@
 # lyz-nf: Lab Monitor Program
 
-Workflow for automatically syncing lab directories, etc..
+Workflow for automatically syncing lab directories, running miscellaneous tasks, etc..
 
 Successor to [`lyz`](https://github.com/NYU-Molecular-Pathology/lyz), using [Nextflow](https://www.nextflow.io/) execution engine.
 
@@ -57,4 +57,4 @@ External configurations for your tasks can be saved in a file such as `config.js
 make run CONFIG=/path/to/config.json
 ```
 
-- NOTE: For my convenience, the path to the config I use on my system is currently hard-coded into `Makefile`. You can modify this for your usages instead. 
+- NOTE: For my convenience, the path to the config I use on my system is currently hard-coded into `Makefile`. You can modify this for your usages instead.
