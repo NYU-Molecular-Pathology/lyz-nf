@@ -26,12 +26,14 @@ def productionDirNGS50 = params.externalConfig.productionDirNGS50
 // only create processes if not locked
 if ( isLocked == false ){
     process sync_demultiplexing {
+        echo true
+
         input:
         val(x) from Channel.from('')
 
         script:
         """
-        rsync --dry-run -vrthP -e ssh "${productionDir}/" "${params.username}"@"${syncServer}":"${MCITdir}/" \
+        rsync -vrthP -e ssh "${productionDir}/" "${params.username}"@"${syncServer}":"${MCITdir}/" \
         --include="Demultiplexing" \
         --include="Demultiplexing/*" \
         --include="Demultiplexing/*/output/***" \
@@ -40,9 +42,15 @@ if ( isLocked == false ){
         """
     }
 
+    enable_sync_NGS580 = false
     process sync_NGS580 {
+        echo true
+
         input:
         val(x) from Channel.from('')
+
+        when:
+        enable_sync_NGS580 == true
 
         script:
         """
@@ -56,12 +64,17 @@ if ( isLocked == false ){
     }
 
     process sync_NGS50 {
+        echo true
+
         input:
         val(x) from Channel.from('')
 
         script:
         """
-        rsync --dry-run -vrthP -e ssh "${productionDirNGS50}/" "${params.username}"@"${syncServer}":"${MCITdir}/IonTorrent/NGS50/output/" \
+        # dont copy symlinks
+        # dont copy files with ':' in the name
+
+        rsync -vrthP -e ssh "${productionDirNGS50}/" "${params.username}"@"${syncServer}":"${MCITdir}/IonTorrent/NGS50/output/" \
         --exclude='.git*' \
         --exclude='*old' \
         --exclude='*oldbad' \
@@ -69,7 +82,8 @@ if ( isLocked == false ){
         --exclude='*_test1' \
         --exclude='*_test' \
         --exclude='test*' \
-        --exclude="*:*"
+        --exclude="*:*" | \
+        grep -v '^skipping'
         """
     }
 } else {
