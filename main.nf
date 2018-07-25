@@ -33,6 +33,9 @@ if ( isLocked == false ){
 
         script:
         """
+        # copy only 'output' directory
+        # dont copy files with ':' in the name
+
         rsync -vrthP -e ssh "${productionDir}/" "${params.username}"@"${syncServer}":"${MCITdir}/" \
         --include="Demultiplexing" \
         --include="Demultiplexing/*" \
@@ -42,7 +45,7 @@ if ( isLocked == false ){
         """
     }
 
-    enable_sync_NGS580 = false
+    enable_sync_NGS580 = true
     process sync_NGS580 {
         echo true
 
@@ -54,7 +57,10 @@ if ( isLocked == false ){
 
         script:
         """
-        rsync --dry-run -vrthPL -e ssh "${productionDir}/" "${params.username}"@"${syncServer}":"${MCITdir}/" \
+        # copy only 'output' directory
+        # dont copy files with ':' in the name
+
+        rsync -vrthP -e ssh "${productionDir}/" "${params.username}"@"${syncServer}":"${MCITdir}/" \
         --include="NGS580" \
         --include="NGS580/*" \
         --include="NGS580/*/output/***" \
