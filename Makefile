@@ -4,7 +4,7 @@ TIMESTAMP:=$(shell date +"%Y-%m-%d_%H-%M-%S")
 
 # un-comment this and change it for your config file:
 # CONFIG:=config.json
-CONFIG:=/ifs/data/molecpathlab/private_data/lyz-nf-config.json
+CONFIG:=/gpfs/data/molecpathlab/private_data/lyz-nf-config.json
 
 
 # ~~~~~ SETUP ~~~~~ #
@@ -30,7 +30,7 @@ cron:
 
 # ~~~~~ RUN ~~~~~ #
 run: install
-	if [ "$$( module > /dev/null 2>&1; echo $$?)" -eq 0 ]; then module unload java && module load java/1.8 ; fi ; \
+	if grep -q 'phoenix' <<<'$(HOSTNAME)'; then module unload java && module load java/1.8; fi ; \
 	logdir="$(LOGDIR)/$(TIMESTAMP)" ; \
 	mkdir -p "$${logdir}" ; \
 	logfile="$${logdir}/nextflow.log" ; \
