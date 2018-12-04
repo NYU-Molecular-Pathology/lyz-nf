@@ -18,7 +18,7 @@ update: ./nextflow
 
 CRONFILE:=cron.job
 # “At minute 0 past hour 12 and 23.” e.g. 12:00, 23:00 # https://crontab.guru/
-CRONINTERVAL:=0 12,23 * * *
+CRONINTERVAL:=0 12,18,23 * * *
 # CRONINTERVAL:=* * * * *
 CRONCMD:=. $(shell echo $$HOME)/.bash_profile; cd $(shell pwd); make run >/dev/null 2>&1
 cron:
