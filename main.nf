@@ -5,6 +5,7 @@ def isLocked = lockFile.exists()
 if ( isLocked == false ){
     lockFile.createNewFile()
 }
+def workflowTimestamp = "${workflow.start.format('yyyy-MM-dd-HH-mm-ss')}"
 
 log.info "~~~~~~~ lyz-nf: lab monitor workflow ~~~~~~~"
 log.info "* launchDir:          ${workflow.launchDir}"
@@ -14,12 +15,25 @@ log.info "* externalConfigFile: ${params.externalConfigFile}"
 log.info "* user:               ${params.username}"
 log.info "* system:             ${params.hostname}"
 log.info "* isLocked:           ${isLocked}"
+log.info "* Launch time:        ${workflowTimestamp}"
+log.info "* Project dir:        ${workflow.projectDir}"
+log.info "* Launch dir:         ${workflow.launchDir}"
+log.info "* Work dir:           ${workflow.workDir.toUriString()}"
+log.info "* Profile:            ${workflow.profile ?: '-'}"
+log.info "* Script name:        ${workflow.scriptName ?: '-'}"
+log.info "* Script ID:          ${workflow.scriptId ?: '-'}"
+log.info "* Container engine:   ${workflow.containerEngine?:'-'}"
+log.info "* Workflow session:   ${workflow.sessionId}"
+log.info "* Nextflow run name:  ${workflow.runName}"
+log.info "* Nextflow version:   ${workflow.nextflow.version}, build ${workflow.nextflow.build} (${workflow.nextflow.timestamp})"
+log.info "* Launch command:\n${workflow.commandLine}\n"
 
-// get external configs
-def MCITdir = params.externalConfig.MCITdir
-def syncServer = params.externalConfig.syncServer
-def productionDir = params.externalConfig.productionDir
-def productionDirNGS50 = params.externalConfig.productionDirNGS50
+
+// // get external configs
+def MCITdir = params.MCITdir
+def syncServer = params.syncServer
+def productionDir = params.productionDir
+def productionDirNGS50 = params.productionDirNGS50
 
 
 // ~~~~~ TASKS TO RUN ~~~~~ //
@@ -32,17 +46,29 @@ if ( isLocked == false ){
         val(x) from Channel.from('')
 
         script:
-        """
-        # copy only 'output' directory
-        # dont copy files with ':' in the name
+        if ( workflow.profile == 'bigpurple' )
+            """
+            ssh '${syncServer}' <<E0F
+            rsync -vrthP "${productionDir}/" "/mnt/${params.username}/molecular/MOLECULAR/" \
+            --include="Demultiplexing" \
+            --include="Demultiplexing/*" \
+            --include="Demultiplexing/*/output/***" \
+            --exclude="*:*" \
+            --exclude="*"
+            E0F
+            """
+        else
+            """
+            # copy only 'output' directory
+            # dont copy files with ':' in the name
 
-        rsync -vrthP -e ssh "${productionDir}/" "${params.username}"@"${syncServer}":"${MCITdir}/" \
-        --include="Demultiplexing" \
-        --include="Demultiplexing/*" \
-        --include="Demultiplexing/*/output/***" \
-        --exclude="*:*" \
-        --exclude="*"
-        """
+            rsync -vrthP -e ssh "${productionDir}/" "${params.username}"@"${syncServer}":"${MCITdir}/" \
+            --include="Demultiplexing" \
+            --include="Demultiplexing/*" \
+            --include="Demultiplexing/*/output/***" \
+            --exclude="*:*" \
+            --exclude="*"
+            """
     }
 
     enable_sync_NGS580 = true
@@ -56,17 +82,29 @@ if ( isLocked == false ){
         enable_sync_NGS580 == true
 
         script:
-        """
-        # copy only 'output' directory
-        # dont copy files with ':' in the name
+        if ( workflow.profile == 'bigpurple' )
+            """
+            ssh '${syncServer}' <<E0F
+            rsync -vrthP "${productionDir}/" "/mnt/${params.username}/molecular/MOLECULAR/" \
+            --include="NGS580" \
+            --include="NGS580/*" \
+            --include="NGS580/*/output/***" \
+            --exclude="*:*" \
+            --exclude="*"
+            E0F
+            """
+        else
+            """
+            # copy only 'output' directory
+            # dont copy files with ':' in the name
 
-        rsync -vrthP -e ssh "${productionDir}/" "${params.username}"@"${syncServer}":"${MCITdir}/" \
-        --include="NGS580" \
-        --include="NGS580/*" \
-        --include="NGS580/*/output/***" \
-        --exclude="*:*" \
-        --exclude="*"
-        """
+            rsync -vrthP -e ssh "${productionDir}/" "${params.username}"@"${syncServer}":"${MCITdir}/" \
+            --include="NGS580" \
+            --include="NGS580/*" \
+            --include="NGS580/*/output/***" \
+            --exclude="*:*" \
+            --exclude="*"
+            """
     }
 
     process sync_NGS50 {
@@ -76,21 +114,37 @@ if ( isLocked == false ){
         val(x) from Channel.from('')
 
         script:
-        """
-        # dont copy symlinks
-        # dont copy files with ':' in the name
+        if ( workflow.profile == 'bigpurple' )
+            """
+            ssh '${syncServer}' <<E0F
+            rsync -vrthP "${productionDirNGS50}/" "/mnt/${params.username}/molecular/MOLECULAR/IonTorrent/NGS50/output/" \
+            --exclude='.git*' \
+            --exclude='*old' \
+            --exclude='*oldbad' \
+            --exclude='*_old' \
+            --exclude='*_test1' \
+            --exclude='*_test' \
+            --exclude='test*' \
+            --exclude="*:*" | \
+            grep -v '^skipping'
+            E0F
+            """
+        else
+            """
+            # dont copy symlinks
+            # dont copy files with ':' in the name
 
-        rsync -vrthP -e ssh "${productionDirNGS50}/" "${params.username}"@"${syncServer}":"${MCITdir}/IonTorrent/NGS50/output/" \
-        --exclude='.git*' \
-        --exclude='*old' \
-        --exclude='*oldbad' \
-        --exclude='*_old' \
-        --exclude='*_test1' \
-        --exclude='*_test' \
-        --exclude='test*' \
-        --exclude="*:*" | \
-        grep -v '^skipping'
-        """
+            rsync -vrthP -e ssh "${productionDirNGS50}/" "${params.username}"@"${syncServer}":"${MCITdir}/IonTorrent/NGS50/output/" \
+            --exclude='.git*' \
+            --exclude='*old' \
+            --exclude='*oldbad' \
+            --exclude='*_old' \
+            --exclude='*_test1' \
+            --exclude='*_test' \
+            --exclude='test*' \
+            --exclude="*:*" | \
+            grep -v '^skipping'
+            """
     }
 } else {
     log.info "Workflow is locked; another instance of this workflow is probably running. No tasks will be run"
