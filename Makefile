@@ -22,7 +22,7 @@ CRONINTERVAL:=0 12,18,23 * * *
 # CRONINTERVAL:=* * * * *
 CRONCMD:=. $(shell echo $$HOME)/.bash_profile; cd $(shell pwd); make run >/dev/null 2>&1
 cron:
-	crontab -l > old.cron.$$(date +"%Y-%m-%d_%H-%M-%S") ; \
+	@crontab -l > old.cron.$$(date +"%Y-%m-%d_%H-%M-%S") ; \
 	croncmd='$(CRONINTERVAL) $(CRONCMD)'; \
 	echo "$${croncmd}" > "$(CRONFILE)" && \
 	crontab "$(CRONFILE)"
@@ -30,7 +30,7 @@ cron:
 
 # ~~~~~ RUN ~~~~~ #
 run: install
-	if grep -q 'phoenix' <<<'$(HOSTNAME)'; then module unload java && module load java/1.8; fi ; \
+	@if grep -q 'phoenix' <<<'$(HOSTNAME)'; then module unload java && module load java/1.8; fi ; \
 	if grep -q 'bigpurple' <<<'$(HOSTNAME)'; then export NXF_PROFILE_ARG='-profile bigpurple'; fi; \
 	logdir="$(LOGDIR)/$(TIMESTAMP)" ; \
 	mkdir -p "$${logdir}" ; \

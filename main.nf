@@ -40,7 +40,6 @@ def productionDirNGS50 = params.productionDirNGS50
 // only create processes if not locked
 if ( isLocked == false ){
     process sync_demultiplexing {
-        echo true
 
         input:
         val(x) from Channel.from('')
@@ -73,7 +72,6 @@ if ( isLocked == false ){
 
     enable_sync_NGS580 = true
     process sync_NGS580 {
-        echo true
 
         input:
         val(x) from Channel.from('')
@@ -107,11 +105,14 @@ if ( isLocked == false ){
             """
     }
 
+    enable_sync_NGS50 = false
     process sync_NGS50 {
-        echo true
 
         input:
         val(x) from Channel.from('')
+
+        when:
+        enable_sync_NGS50 == true
 
         script:
         if ( workflow.profile == 'bigpurple' )
