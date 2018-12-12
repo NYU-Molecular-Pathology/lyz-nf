@@ -1,13 +1,14 @@
 SHELL:=/bin/bash
 LOGDIR:=logs
 TIMESTAMP:=$(shell date +"%Y-%m-%d_%H-%M-%S")
-
+HOSTNAME:=$(shell uname -n)
 # un-comment this and change it for your config file:
 # CONFIG:=config.json
 CONFIG:=/gpfs/data/molecpathlab/private_data/lyz-nf-config.json
 
 
 # ~~~~~ SETUP ~~~~~ #
+# isntall Nextflow; tested with version 0.30.2
 ./nextflow:
 	curl -fsSL get.nextflow.io | bash
 
