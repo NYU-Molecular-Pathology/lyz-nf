@@ -52,6 +52,7 @@ if ( isLocked == false ){
             --include="Demultiplexing" \
             --include="Demultiplexing/*" \
             --include="Demultiplexing/*/output/***" \
+            --exclude='*_test' \
             --exclude="*:*" \
             --exclude="*"
             E0F
@@ -65,6 +66,7 @@ if ( isLocked == false ){
             --include="Demultiplexing" \
             --include="Demultiplexing/*" \
             --include="Demultiplexing/*/output/***" \
+            --exclude='*_test' \
             --exclude="*:*" \
             --exclude="*"
             """
@@ -88,6 +90,7 @@ if ( isLocked == false ){
             --include="NGS580/*" \
             --include="NGS580/*/output/***" \
             --exclude="*:*" \
+            --exclude='*_test' \
             --exclude="*"
             E0F
             """
@@ -101,6 +104,7 @@ if ( isLocked == false ){
             --include="NGS580/*" \
             --include="NGS580/*/output/***" \
             --exclude="*:*" \
+            --exclude='*_test' \
             --exclude="*"
             """
     }
