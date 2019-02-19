@@ -34,123 +34,205 @@ def MCITdir = params.MCITdir
 def syncServer = params.syncServer
 def productionDir = params.productionDir
 def productionDirNGS50 = params.productionDirNGS50
+def seqDir = params.seqDir
+def demuxDir = params.demuxDir
+def NGS580Dir = params.NGS580Dir
+
+
+// get list of Demultiplexing run directories
+Channel.fromPath("${demuxDir}/*", type: "dir", maxDepth: 1)
+.filter { dir ->
+    // filter out 'test' directories, end with '_test', etc.
+    ! "${dir.baseName}".endsWith("_test") && ! "${dir.baseName}".endsWith("_oldgood")
+}
+.map { dir ->
+    def fullpath = new File("${dir}").getCanonicalPath()
+    def basename = "${dir.baseName}"
+    return([ dir, basename, fullpath ])
+}
+.set { demux_dirs }
+
+// get list of NGS580 directories
+Channel.fromPath("${NGS580Dir}/*", type: "dir", maxDepth: 1)
+.filter { dir ->
+    // filter out 'test' directories, end with '_test', etc.
+    ! "${dir.baseName}".endsWith("_test") && ! "${dir.baseName}".endsWith("_test2")
+}
+.map { dir ->
+    def fullpath = new File("${dir}").getCanonicalPath()
+    def basename = "${dir.baseName}"
+    return([ dir, basename, fullpath ])
+}
+.set { ngs580_dirs }
+// .subscribe { println "${it}" }
+
 
 
 // ~~~~~ TASKS TO RUN ~~~~~ //
 // only create processes if not locked
 if ( isLocked == false ){
-    process sync_demultiplexing {
+    enable_sync_demux_run = true
+    process sync_demultiplexing_run {
+        tag "${demux_dir}"
 
         input:
-        val(x) from Channel.from('')
-
-        script:
-        if ( workflow.profile == 'bigpurple' )
-            """
-            ssh '${syncServer}' <<E0F
-            rsync -vrthP "${productionDir}/" "/mnt/${params.username}/molecular/MOLECULAR/" \
-            --include="Demultiplexing" \
-            --include="Demultiplexing/*" \
-            --include="Demultiplexing/*/output/***" \
-            --exclude='*_test' \
-            --exclude="*:*" \
-            --exclude="*"
-            E0F
-            """
-        else
-            """
-            # copy only 'output' directory
-            # dont copy files with ':' in the name
-
-            rsync -vrthP -e ssh "${productionDir}/" "${params.username}"@"${syncServer}":"${MCITdir}/" \
-            --include="Demultiplexing" \
-            --include="Demultiplexing/*" \
-            --include="Demultiplexing/*/output/***" \
-            --exclude='*_test' \
-            --exclude="*:*" \
-            --exclude="*"
-            """
-    }
-
-    enable_sync_NGS580 = true
-    process sync_NGS580 {
-
-        input:
-        val(x) from Channel.from('')
+        set file(demux_dir), val(basename), val(fullpath) from demux_dirs
 
         when:
-        enable_sync_NGS580 == true
+        enable_sync_demux_run == true
 
         script:
         if ( workflow.profile == 'bigpurple' )
             """
             ssh '${syncServer}' <<E0F
-            rsync -vrthP "${productionDir}/" "/mnt/${params.username}/molecular/MOLECULAR/" \
-            --include="NGS580" \
-            --include="NGS580/*" \
-            --include="NGS580/*/output/***" \
+            rsync --dry-run -vrthP "${fullpath}" "/mnt/${params.username}/molecular/MOLECULAR/Demultiplexing" \
+            --include="${basename}" \
+            --include="${basename}/output/***" \
             --exclude="*:*" \
-            --exclude='*_test' \
             --exclude="*"
             E0F
             """
         else
-            """
-            # copy only 'output' directory
-            # dont copy files with ':' in the name
-
-            rsync -vrthP -e ssh "${productionDir}/" "${params.username}"@"${syncServer}":"${MCITdir}/" \
-            --include="NGS580" \
-            --include="NGS580/*" \
-            --include="NGS580/*/output/***" \
-            --exclude="*:*" \
-            --exclude='*_test' \
-            --exclude="*"
-            """
+            log.error "only Big Purple profile is supported as this time"
     }
 
-    enable_sync_NGS50 = false
-    process sync_NGS50 {
+    process sync_NGS580_run {
+        tag "${ngs580_dir}"
 
         input:
-        val(x) from Channel.from('')
-
-        when:
-        enable_sync_NGS50 == true
+        set file(ngs580_dir), val(basename), val(fullpath) from ngs580_dirs
 
         script:
         if ( workflow.profile == 'bigpurple' )
             """
             ssh '${syncServer}' <<E0F
-            rsync -vrthP "${productionDirNGS50}/" "/mnt/${params.username}/molecular/MOLECULAR/IonTorrent/NGS50/output/" \
-            --exclude='.git*' \
-            --exclude='*old' \
-            --exclude='*oldbad' \
-            --exclude='*_old' \
-            --exclude='*_test1' \
-            --exclude='*_test' \
-            --exclude='test*' \
-            --exclude="*:*" | \
-            grep -v '^skipping'
+            rsync -vrthP "${fullpath}" "/mnt/${params.username}/molecular/MOLECULAR/NGS580" \
+            --include="${basename}" \
+            --include="${basename}/output/***" \
+            --exclude="*:*" \
+            --exclude="*"
             E0F
             """
         else
-            """
-            # dont copy symlinks
-            # dont copy files with ':' in the name
-
-            rsync -vrthP -e ssh "${productionDirNGS50}/" "${params.username}"@"${syncServer}":"${MCITdir}/IonTorrent/NGS50/output/" \
-            --exclude='.git*' \
-            --exclude='*old' \
-            --exclude='*oldbad' \
-            --exclude='*_old' \
-            --exclude='*_test1' \
-            --exclude='*_test' \
-            --exclude='test*' \
-            --exclude="*:*" | \
-            grep -v '^skipping'
-            """
+            log.error "only Big Purple profile is supported as this time"
     }
+
+    // enable_sync_demux = false
+    // process sync_demultiplexing {
+    //
+    //     input:
+    //     val(x) from Channel.from('')
+    //
+    //     when:
+    //     enable_sync_demux == true
+    //
+    //     script:
+    //     if ( workflow.profile == 'bigpurple' )
+    //         """
+    //         ssh '${syncServer}' <<E0F
+    //         rsync -vrthP "${productionDir}/" "/mnt/${params.username}/molecular/MOLECULAR/" \
+    //         --include="Demultiplexing" \
+    //         --include="Demultiplexing/*" \
+    //         --include="Demultiplexing/*/output/***" \
+    //         --exclude='*_test' \
+    //         --exclude="*:*" \
+    //         --exclude="*"
+    //         E0F
+    //         """
+    //     else
+    //         """
+    //         # copy only 'output' directory
+    //         # dont copy files with ':' in the name
+    //
+    //         rsync -vrthP -e ssh "${productionDir}/" "${params.username}"@"${syncServer}":"${MCITdir}/" \
+    //         --include="Demultiplexing" \
+    //         --include="Demultiplexing/*" \
+    //         --include="Demultiplexing/*/output/***" \
+    //         --exclude='*_test' \
+    //         --exclude="*:*" \
+    //         --exclude="*"
+    //         """
+    // }
+    //
+    // enable_sync_NGS580 = false
+    // process sync_NGS580 {
+    //
+    //     input:
+    //     val(x) from Channel.from('')
+    //
+    //     when:
+    //     enable_sync_NGS580 == true
+    //
+    //     script:
+    //     if ( workflow.profile == 'bigpurple' )
+    //         """
+    //         ssh '${syncServer}' <<E0F
+    //         rsync -vrthP "${productionDir}/" "/mnt/${params.username}/molecular/MOLECULAR/" \
+    //         --include="NGS580" \
+    //         --include="NGS580/*" \
+    //         --include="NGS580/*/output/***" \
+    //         --exclude="*:*" \
+    //         --exclude='*_test' \
+    //         --exclude="*"
+    //         E0F
+    //         """
+    //     else
+    //         """
+    //         # copy only 'output' directory
+    //         # dont copy files with ':' in the name
+    //
+    //         rsync -vrthP -e ssh "${productionDir}/" "${params.username}"@"${syncServer}":"${MCITdir}/" \
+    //         --include="NGS580" \
+    //         --include="NGS580/*" \
+    //         --include="NGS580/*/output/***" \
+    //         --exclude="*:*" \
+    //         --exclude='*_test' \
+    //         --exclude="*"
+    //         """
+    // }
+    //
+    // enable_sync_NGS50 = false
+    // process sync_NGS50 {
+    //
+    //     input:
+    //     val(x) from Channel.from('')
+    //
+    //     when:
+    //     enable_sync_NGS50 == true
+    //
+    //     script:
+    //     if ( workflow.profile == 'bigpurple' )
+    //         """
+    //         ssh '${syncServer}' <<E0F
+    //         rsync -vrthP "${productionDirNGS50}/" "/mnt/${params.username}/molecular/MOLECULAR/IonTorrent/NGS50/output/" \
+    //         --exclude='.git*' \
+    //         --exclude='*old' \
+    //         --exclude='*oldbad' \
+    //         --exclude='*_old' \
+    //         --exclude='*_test1' \
+    //         --exclude='*_test' \
+    //         --exclude='test*' \
+    //         --exclude="*:*" | \
+    //         grep -v '^skipping'
+    //         E0F
+    //         """
+    //     else
+    //         """
+    //         # dont copy symlinks
+    //         # dont copy files with ':' in the name
+    //
+    //         rsync -vrthP -e ssh "${productionDirNGS50}/" "${params.username}"@"${syncServer}":"${MCITdir}/IonTorrent/NGS50/output/" \
+    //         --exclude='.git*' \
+    //         --exclude='*old' \
+    //         --exclude='*oldbad' \
+    //         --exclude='*_old' \
+    //         --exclude='*_test1' \
+    //         --exclude='*_test' \
+    //         --exclude='test*' \
+    //         --exclude="*:*" | \
+    //         grep -v '^skipping'
+    //         """
+    // }
 } else {
     log.info "Workflow is locked; another instance of this workflow is probably running. No tasks will be run"
 }
