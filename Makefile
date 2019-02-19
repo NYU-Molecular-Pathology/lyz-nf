@@ -37,6 +37,6 @@ run: install
 	mkdir -p "$${logdir}" ; \
 	logfile="$${logdir}/nextflow.log" ; \
 	stdoutlogfile="$${logdir}/nextflow.stdout.log" ; \
-	export NXF_WORK="$${logdir}" ; \
+	export NXF_WORK="$${logdir}/work" ; \
 	./nextflow -log "$${logfile}" run main.nf -with-trace -with-timeline -with-report $${NXF_PROFILE_ARG:-} --logSubDir "$(TIMESTAMP)" --externalConfigFile "$(CONFIG)" $(EP) | \
 	tee -a "$${stdoutlogfile}"
