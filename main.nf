@@ -37,7 +37,9 @@ def productionDirNGS50 = params.productionDirNGS50
 def seqDir = params.seqDir
 def demuxDir = params.demuxDir
 def NGS580Dir = params.NGS580Dir
-
+def usergroup = params.usergroup
+def dirPerm="g+rwxs"
+def filePerm="g+rw"
 
 // get list of Demultiplexing run directories
 Channel.fromPath("${demuxDir}/*", type: "dir", maxDepth: 1)
@@ -67,10 +69,10 @@ Channel.fromPath("${NGS580Dir}/*", type: "dir", maxDepth: 1)
 // .subscribe { println "${it}" }
 
 
-
 // ~~~~~ TASKS TO RUN ~~~~~ //
 // only create processes if not locked
 if ( isLocked == false ){
+
     enable_sync_demux_run = true
     process sync_demultiplexing_run {
         tag "${demux_dir}"
@@ -84,6 +86,16 @@ if ( isLocked == false ){
         script:
         if ( workflow.profile == 'bigpurple' )
             """
+            # update group of all items
+            find "${fullpath}" ! -group "${usergroup}" -exec chgrp "${usergroup}" {} \\;
+
+            # update permissions on all directories
+            find "${fullpath}" -type d -exec chmod ${dirPerm} {} \\;
+
+            # update permissions on all files
+            find "${fullpath}" -type f -exec chmod ${filePerm} {} \\;
+
+            # try to copy over files
             ssh '${syncServer}' <<E0F
             rsync --dry-run -vrthP "${fullpath}" "/mnt/${params.username}/molecular/MOLECULAR/Demultiplexing" \
             --include="${basename}" \
@@ -105,6 +117,16 @@ if ( isLocked == false ){
         script:
         if ( workflow.profile == 'bigpurple' )
             """
+            # update group of all items
+            find "${fullpath}" ! -group "${usergroup}" -exec chgrp "${usergroup}" {} \\;
+
+            # update permissions on all directories
+            find "${fullpath}" -type d -exec chmod ${dirPerm} {} \\;
+
+            # update permissions on all files
+            find "${fullpath}" -type f -exec chmod ${filePerm} {} \\;
+
+            # try to copy over files
             ssh '${syncServer}' <<E0F
             rsync -vrthP "${fullpath}" "/mnt/${params.username}/molecular/MOLECULAR/NGS580" \
             --include="${basename}" \

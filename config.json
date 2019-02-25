@@ -2,5 +2,5 @@
 	"MCITdir": "/path/to/remotedir",
 	"syncServer": "server.com",
 	"productionDir": "/path/to/productiondir",
-	
+	"usergroup": "foo",
 }
