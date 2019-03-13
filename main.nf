@@ -97,7 +97,7 @@ if ( isLocked == false ){
 
             # try to copy over files
             ssh '${syncServer}' <<E0F
-            rsync --dry-run -vrthP "${fullpath}" "/mnt/${params.username}/molecular/MOLECULAR/Demultiplexing" \
+            rsync -vrthP "${fullpath}" "/mnt/${params.username}/molecular/MOLECULAR/Demultiplexing" \
             --include="${basename}" \
             --include="${basename}/output/***" \
             --exclude="*:*" \
