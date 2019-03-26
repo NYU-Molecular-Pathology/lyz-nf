@@ -37,9 +37,11 @@ def productionDirNGS50 = params.productionDirNGS50
 def seqDir = params.seqDir
 def demuxDir = params.demuxDir
 def NGS580Dir = params.NGS580Dir
+def samplesheetDir = params.samplesheetDir
+def pipelinesDir = params.pipelinesDir
 def usergroup = params.usergroup
-def dirPerm="g+rwxs"
-def filePerm="g+rw"
+def dirPerm = "g+rwxs"
+def filePerm = "g+rw"
 
 // get list of Demultiplexing run directories
 Channel.fromPath("${demuxDir}/*", type: "dir", maxDepth: 1)
@@ -68,6 +70,22 @@ Channel.fromPath("${NGS580Dir}/*", type: "dir", maxDepth: 1)
 .set { ngs580_dirs }
 // .subscribe { println "${it}" }
 
+// get more directories to run other operations on
+Channel.fromPath("${samplesheetDir}/*", type: "dir", maxDepth: 1)
+.map { dir ->
+    def fullpath = new File("${dir}").getCanonicalPath()
+    def basename = "${dir.baseName}"
+    return([ dir, basename, fullpath ])
+}
+.set { samplesheet_dirs }
+
+Channel.fromPath("${pipelinesDir}/*", type: "dir", maxDepth: 1)
+.map { dir ->
+    def fullpath = new File("${dir}").getCanonicalPath()
+    def basename = "${dir.baseName}"
+    return([ dir, basename, fullpath ])
+}
+.set { pipelines_dirs }
 
 // ~~~~~ TASKS TO RUN ~~~~~ //
 // only create processes if not locked
@@ -114,6 +132,9 @@ if ( isLocked == false ){
         input:
         set file(ngs580_dir), val(basename), val(fullpath) from ngs580_dirs
 
+        when:
+        enable_sync_demux_run == true
+
         script:
         if ( workflow.profile == 'bigpurple' )
             """
@@ -137,6 +158,28 @@ if ( isLocked == false ){
             """
         else
             log.error "only Big Purple profile is supported as this time"
+    }
+
+    process fix_dirfile_permissions {
+        tag "${input_dir}"
+
+        input:
+        set file(input_dir), val(basename), val(fullpath) from samplesheet_dirs.concat(pipelines_dirs)
+
+        script:
+        """
+        # update group of all items
+        find "${fullpath}" ! -group "${usergroup}" -exec chgrp "${usergroup}" {} \\;
+
+        # update permissions on all directories
+        find "${fullpath}" -type d -exec chmod ${dirPerm} {} \\;
+
+        # update permissions on all files
+        find "${fullpath}" -type f -exec chmod ${filePerm} {} \\;
+
+        # make all exectuable files user & group executable
+        find "${fullpath}" -type f -executable -exec chmod ug+X {} \\;
+        """
     }
 
     // enable_sync_demux = false

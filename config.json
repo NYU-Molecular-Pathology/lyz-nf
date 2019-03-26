@@ -3,4 +3,13 @@
 	"syncServer": "server.com",
 	"productionDir": "/path/to/productiondir",
 	"usergroup": "foo",
+	"samplesheetDir": "/path/to/productiondir/samplesheets",
+	"productionDirNGS50": "/path/to/productiondir/NGS50/output",
+	"seqDir": "/path/to/productiondir/quicksilver",
+	"demuxDir": "/path/to/productiondir/Demultiplexing",
+	"NGS580Dir": "/path/to/productiondir/NGS580",
+	"BigPurpleDataNode": "node-0001",
+	"BigPurpleMountRoot": "/mnt",
+	"pipelinesDir": "/path/to/productiondir/pipelines",
+	"BigPurpleMolecularDir": "molecular",
 }
