@@ -77,7 +77,7 @@ Channel.fromPath("${samplesheetDir}/*", type: "dir", maxDepth: 1)
     def basename = "${dir.baseName}"
     return([ dir, basename, fullpath ])
 }
-.set { samplesheet_dirs }
+.into { samplesheet_dirs; samplesheet_dirs2 }
 
 Channel.fromPath("${pipelinesDir}/*", type: "dir", maxDepth: 1)
 .map { dir ->
@@ -180,6 +180,32 @@ if ( isLocked == false ){
         # make all exectuable files user & group executable
         find "${fullpath}" -type f -executable -exec chmod ug+X {} \\;
         """
+    }
+
+    process sync_samplesheets {
+        echo true
+        input:
+        set file(input_dir), val(basename), val(fullpath) from samplesheet_dirs2
+
+        script:
+        if ( workflow.profile == 'bigpurple' )
+            """
+            # update group of all items
+            find "${fullpath}" ! -group "${usergroup}" -exec chgrp "${usergroup}" {} \\;
+
+            # update permissions on all directories
+            find "${fullpath}" -type d -exec chmod ${dirPerm} {} \\;
+
+            # update permissions on all files
+            find "${fullpath}" -type f -exec chmod ${filePerm} {} \\;
+
+            # try to copy over files
+            ssh '${syncServer}' <<E0F
+            rsync -vrthP "${fullpath}" "/mnt/${params.username}/molecular/MOLECULAR/samplesheets"
+            E0F
+            """
+        else
+            log.error "only Big Purple profile is supported as this time"
     }
 
     // enable_sync_demux = false
