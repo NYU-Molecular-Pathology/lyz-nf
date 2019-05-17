@@ -183,7 +183,7 @@ if ( isLocked == false ){
     }
 
     process sync_samplesheets {
-        echo true
+        tag "${input_dir}"
         input:
         set file(input_dir), val(basename), val(fullpath) from samplesheet_dirs2
 
