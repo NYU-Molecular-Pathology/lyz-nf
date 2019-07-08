@@ -52,7 +52,8 @@ Channel.fromPath("${demuxDir}/*", type: "dir", maxDepth: 1)
 .map { dir ->
     def fullpath = new File("${dir}").getCanonicalPath()
     def basename = "${dir.baseName}"
-    return([ dir, basename, fullpath ])
+    def type = "demux"
+    return([ type, dir, basename, fullpath ])
 }
 .set { demux_dirs }
 
@@ -65,7 +66,8 @@ Channel.fromPath("${NGS580Dir}/*", type: "dir", maxDepth: 1)
 .map { dir ->
     def fullpath = new File("${dir}").getCanonicalPath()
     def basename = "${dir.baseName}"
-    return([ dir, basename, fullpath ])
+    def type = "NGS580"
+    return([ type, dir, basename, fullpath ])
 }
 .set { ngs580_dirs }
 // .subscribe { println "${it}" }
@@ -75,7 +77,8 @@ Channel.fromPath("${samplesheetDir}/*", type: "dir", maxDepth: 1)
 .map { dir ->
     def fullpath = new File("${dir}").getCanonicalPath()
     def basename = "${dir.baseName}"
-    return([ dir, basename, fullpath ])
+    def type = "samplesheet"
+    return([ type, dir, basename, fullpath ])
 }
 .into { samplesheet_dirs; samplesheet_dirs2 }
 
@@ -83,7 +86,8 @@ Channel.fromPath("${pipelinesDir}/*", type: "dir", maxDepth: 1)
 .map { dir ->
     def fullpath = new File("${dir}").getCanonicalPath()
     def basename = "${dir.baseName}"
-    return([ dir, basename, fullpath ])
+    def type = "pipeline"
+    return([ type, dir, basename, fullpath ])
 }
 .set { pipelines_dirs }
 
@@ -91,80 +95,17 @@ Channel.fromPath("${pipelinesDir}/*", type: "dir", maxDepth: 1)
 // only create processes if not locked
 if ( isLocked == false ){
 
-    enable_sync_demux_run = true
-    process sync_demultiplexing_run {
-        tag "${demux_dir}"
-
-        input:
-        set file(demux_dir), val(basename), val(fullpath) from demux_dirs
-
-        when:
-        enable_sync_demux_run == true
-
-        script:
-        if ( workflow.profile == 'bigpurple' )
-            """
-            # update group of all items
-            find "${fullpath}" ! -group "${usergroup}" -exec chgrp "${usergroup}" {} \\;
-
-            # update permissions on all directories
-            find "${fullpath}" -type d -exec chmod ${dirPerm} {} \\;
-
-            # update permissions on all files
-            find "${fullpath}" -type f -exec chmod ${filePerm} {} \\;
-
-            # try to copy over files
-            ssh '${syncServer}' <<E0F
-            rsync -vrthP "${fullpath}" "/mnt/${params.username}/molecular/MOLECULAR/Demultiplexing" \
-            --include="${basename}" \
-            --include="${basename}/output/***" \
-            --exclude="*:*" \
-            --exclude="*"
-            E0F
-            """
-        else
-            log.error "only Big Purple profile is supported as this time"
-    }
-
-    process sync_NGS580_run {
-        tag "${ngs580_dir}"
-
-        input:
-        set file(ngs580_dir), val(basename), val(fullpath) from ngs580_dirs
-
-        when:
-        enable_sync_demux_run == true
-
-        script:
-        if ( workflow.profile == 'bigpurple' )
-            """
-            # update group of all items
-            find "${fullpath}" ! -group "${usergroup}" -exec chgrp "${usergroup}" {} \\;
-
-            # update permissions on all directories
-            find "${fullpath}" -type d -exec chmod ${dirPerm} {} \\;
-
-            # update permissions on all files
-            find "${fullpath}" -type f -exec chmod ${filePerm} {} \\;
-
-            # try to copy over files
-            ssh '${syncServer}' <<E0F
-            rsync -vrthP "${fullpath}" "/mnt/${params.username}/molecular/MOLECULAR/NGS580" \
-            --include="${basename}" \
-            --include="${basename}/output/***" \
-            --exclude="*:*" \
-            --exclude="*"
-            E0F
-            """
-        else
-            log.error "only Big Purple profile is supported as this time"
-    }
+    samplesheet_dirs.mix(pipelines_dirs, ngs580_dirs, demux_dirs)
+        .set { all_dirs }
 
     process fix_dirfile_permissions {
         tag "${input_dir}"
 
         input:
-        set file(input_dir), val(basename), val(fullpath) from samplesheet_dirs.concat(pipelines_dirs)
+        set val(type), file(input_dir), val(basename), val(fullpath) from all_dirs
+
+        output:
+        set val(type), file(input_dir), val(basename), val(fullpath) into all_dirs_perms
 
         script:
         """
@@ -182,28 +123,118 @@ if ( isLocked == false ){
         """
     }
 
-    process sync_samplesheets {
-        tag "${input_dir}"
+    ngs580_ch = Channel.create()
+    demux_ch = Channel.create()
+    samplesheet_ch = Channel.create()
+    pipeline_ch = Channel.create()
+    all_dirs_perms.choice( ngs580_ch, demux_ch, samplesheet_ch, pipeline_ch ){ items ->
+    def type =  items[0]
+    def dir = items[1]
+    def basename =  items[2]
+    def fullpath =  items[3]
+
+    def ngs580_ch_index = 0
+    def demux_ch_index = 1
+    def samplesheet_ch_index = 2
+    def pipeline_ch_index = 3
+    def output
+
+    if ( type == "NGS580" ) output = ngs580_ch_index
+    if ( type == "demux" ) output = demux_ch_index
+    if ( type == "samplesheet" ) output = samplesheet_ch_index
+    if ( type == "pipeline" ) output = pipeline_ch_index
+    return(output)
+    }
+
+    enable_sync_demux_run = true
+    process sync_demultiplexing_run {
+        tag "${demux_dir}"
+
         input:
-        set file(input_dir), val(basename), val(fullpath) from samplesheet_dirs2
+        set val(type), file(demux_dir), val(basename), val(fullpath) from demux_ch
+
+        when:
+        enable_sync_demux_run == true
 
         script:
         if ( workflow.profile == 'bigpurple' )
             """
-            # update group of all items
-            find "${fullpath}" ! -group "${usergroup}" -exec chgrp "${usergroup}" {} \\;
+            # try to copy over files
+            ssh '${syncServer}' <<E0F
+            rsync -vrthP "${fullpath}" "/mnt/${params.username}/molecular/MOLECULAR/Demultiplexing" \
+            --include="${basename}" \
+            --include="${basename}/output/***" \
+            --exclude="*:*" \
+            --exclude="*"
+            E0F
+            """
+            // # update group of all items
+            // find "${fullpath}" ! -group "${usergroup}" -exec chgrp "${usergroup}" {} \\;
+            //
+            // # update permissions on all directories
+            // find "${fullpath}" -type d -exec chmod ${dirPerm} {} \\;
+            //
+            // # update permissions on all files
+            // find "${fullpath}" -type f -exec chmod ${filePerm} {} \\;
+        else
+            log.error "only Big Purple profile is supported as this time"
+    }
 
-            # update permissions on all directories
-            find "${fullpath}" -type d -exec chmod ${dirPerm} {} \\;
+    process sync_NGS580_run {
+        tag "${ngs580_dir}"
 
-            # update permissions on all files
-            find "${fullpath}" -type f -exec chmod ${filePerm} {} \\;
+        input:
+        set val(type), file(ngs580_dir), val(basename), val(fullpath) from ngs580_ch
 
+        when:
+        enable_sync_demux_run == true
+
+        script:
+        if ( workflow.profile == 'bigpurple' )
+            """
+            # try to copy over files
+            ssh '${syncServer}' <<E0F
+            rsync -vrthP "${fullpath}" "/mnt/${params.username}/molecular/MOLECULAR/NGS580" \
+            --include="${basename}" \
+            --include="${basename}/output/***" \
+            --exclude="*:*" \
+            --exclude="*"
+            E0F
+            """
+            // # update group of all items
+            // find "${fullpath}" ! -group "${usergroup}" -exec chgrp "${usergroup}" {} \\;
+            //
+            // # update permissions on all directories
+            // find "${fullpath}" -type d -exec chmod ${dirPerm} {} \\;
+            //
+            // # update permissions on all files
+            // find "${fullpath}" -type f -exec chmod ${filePerm} {} \\;
+
+        else
+            log.error "only Big Purple profile is supported as this time"
+    }
+
+    process sync_samplesheets {
+        tag "${input_dir}"
+        input:
+        set val(type), file(input_dir), val(basename), val(fullpath) from samplesheet_ch
+
+        script:
+        if ( workflow.profile == 'bigpurple' )
+            """
             # try to copy over files
             ssh '${syncServer}' <<E0F
             rsync -vrthP "${fullpath}" "/mnt/${params.username}/molecular/MOLECULAR/samplesheets"
             E0F
             """
+            // # update group of all items
+            // find "${fullpath}" ! -group "${usergroup}" -exec chgrp "${usergroup}" {} \\;
+            //
+            // # update permissions on all directories
+            // find "${fullpath}" -type d -exec chmod ${dirPerm} {} \\;
+            //
+            // # update permissions on all files
+            // find "${fullpath}" -type f -exec chmod ${filePerm} {} \\;
         else
             log.error "only Big Purple profile is supported as this time"
     }
