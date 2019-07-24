@@ -6,19 +6,28 @@ if ( isLocked == false ){
     lockFile.createNewFile()
 }
 def workflowTimestamp = "${workflow.start.format('yyyy-MM-dd-HH-mm-ss')}"
+Process uname_proc = 'uname'.execute()
+def uname = "${uname_proc.text.trim()}"
+String hostname = java.net.InetAddress.getLocalHost().getHostName();
 
 log.info "~~~~~~~ lyz-nf: lab monitor workflow ~~~~~~~"
+if(uname == "Linux"){
+    // /proc/self only works on Linux
+    int pid = Integer.parseInt(new File("/proc/self").getCanonicalFile().getName())
+    log.info "* pid:                ${pid}"
+}
+log.info "* hostname:           ${hostname}"
+log.info "* uname:              ${uname}"
+log.info "* user:               ${params.username}"
+log.info "* isLocked:           ${isLocked}"
+log.info "* Launch time:        ${workflowTimestamp}"
 log.info "* launchDir:          ${workflow.launchDir}"
 log.info "* workDir:            ${workflow.workDir}"
 log.info "* logDir:             ${params.logDir}"
-log.info "* externalConfigFile: ${params.externalConfigFile}"
-log.info "* user:               ${params.username}"
-log.info "* system:             ${params.hostname}"
-log.info "* isLocked:           ${isLocked}"
-log.info "* Launch time:        ${workflowTimestamp}"
 log.info "* Project dir:        ${workflow.projectDir}"
 log.info "* Launch dir:         ${workflow.launchDir}"
 log.info "* Work dir:           ${workflow.workDir.toUriString()}"
+log.info "* externalConfigFile: ${params.externalConfigFile}"
 log.info "* Profile:            ${workflow.profile ?: '-'}"
 log.info "* Script name:        ${workflow.scriptName ?: '-'}"
 log.info "* Script ID:          ${workflow.scriptId ?: '-'}"

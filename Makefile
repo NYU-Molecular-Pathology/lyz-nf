@@ -38,13 +38,17 @@ run: install
 	logfile="$${logdir}/nextflow.log" ; \
 	stdoutlogfile="$${logdir}/nextflow.stdout.log" ; \
 	export NXF_WORK="$${logdir}/work" ; \
-	{ \
-	trap_func(){ echo TRAP; kill $$pid ; } ; \
-	trap trap_func INT ; \
-	trap trap_func EXIT ; \
-	./nextflow -log "$${logfile}" run main.nf -with-trace -with-timeline -with-report $${NXF_PROFILE_ARG:-} --logSubDir "$(TIMESTAMP)" --externalConfigFile "$(CONFIG)" $(EP) & pid=$$(echo $$!) ; \
-	echo ">>> process id: $$pid" ; \
-	echo ">>> hostname: $(HOSTNAME)" ; \
-	echo ">>> Waiting on process $$pid" ; \
-	wait "$$pid" ; }| \
+	./nextflow -log "$${logfile}" run main.nf -with-trace -with-timeline -with-report $${NXF_PROFILE_ARG:-} --logSubDir "$(TIMESTAMP)" --externalConfigFile "$(CONFIG)" $(EP) | \
 	tee -a "$${stdoutlogfile}"
+
+# Notes on how to use bash trap to catch kill signal and pass to Nextflow
+# { \
+# trap_func(){ echo TRAP; kill $$pid ; wait "$$pid" ; } ; \
+# trap trap_func INT ; \
+# trap trap_func EXIT ; \
+# ./nextflow -log "$${logfile}" run main.nf -with-trace -with-timeline -with-report $${NXF_PROFILE_ARG:-} --logSubDir "$(TIMESTAMP)" --externalConfigFile "$(CONFIG)" $(EP) & pid=$$(echo $$!) ; \
+# echo ">>> process id: $$pid" ; \
+# echo ">>> hostname: $(HOSTNAME)" ; \
+# echo ">>> Waiting on process $$pid" ; \
+# wait "$$pid" ; }| \
+# tee -a "$${stdoutlogfile}"
