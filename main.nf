@@ -89,6 +89,21 @@ Channel.fromPath("${pipelinesDir}/*", type: "dir", maxDepth: 1)
     def type = "pipeline"
     return([ type, dir, basename, fullpath ])
 }
+.filter { items ->
+    def type = items[0]
+    def dir = items[1]
+    def basename = items[2]
+    def fullpath = items[3]
+
+    // do not run on these pipeline dirs
+    def names_to_ignore = [
+    "lyz-nf",
+    "NGS50-reporter",
+    "snsxt"
+    ]
+    def is_in_ignore_list = names_to_ignore.any { it.contains("${basename}") }
+    return(is_in_ignore_list)
+}
 .set { pipelines_dirs }
 
 // ~~~~~ TASKS TO RUN ~~~~~ //
