@@ -31,12 +31,20 @@ cron:
 
 # ~~~~~ RUN ~~~~~ #
 run: install
-	@if grep -q 'phoenix' <<<'$(HOSTNAME)'; then module unload java && module load java/1.8; fi ; \
+	if grep -q 'phoenix' <<<'$(HOSTNAME)'; then module unload java && module load java/1.8; fi ; \
 	if grep -q 'bigpurple' <<<'$(HOSTNAME)'; then export NXF_PROFILE_ARG='-profile bigpurple'; fi; \
 	logdir="$(LOGDIR)/$(TIMESTAMP)" ; \
 	mkdir -p "$${logdir}" ; \
 	logfile="$${logdir}/nextflow.log" ; \
 	stdoutlogfile="$${logdir}/nextflow.stdout.log" ; \
 	export NXF_WORK="$${logdir}/work" ; \
-	./nextflow -log "$${logfile}" run main.nf -with-trace -with-timeline -with-report $${NXF_PROFILE_ARG:-} --logSubDir "$(TIMESTAMP)" --externalConfigFile "$(CONFIG)" $(EP) | \
+	{ \
+	trap_func(){ echo TRAP; kill $$pid ; } ; \
+	trap trap_func INT ; \
+	trap trap_func EXIT ; \
+	./nextflow -log "$${logfile}" run main.nf -with-trace -with-timeline -with-report $${NXF_PROFILE_ARG:-} --logSubDir "$(TIMESTAMP)" --externalConfigFile "$(CONFIG)" $(EP) & pid=$$(echo $$!) ; \
+	echo ">>> process id: $$pid" ; \
+	echo ">>> hostname: $(HOSTNAME)" ; \
+	echo ">>> Waiting on process $$pid" ; \
+	wait "$$pid" ; }| \
 	tee -a "$${stdoutlogfile}"
