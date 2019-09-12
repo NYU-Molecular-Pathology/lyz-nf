@@ -5,7 +5,9 @@ HOSTNAME:=$(shell uname -n)
 # un-comment this and change it for your config file:
 # CONFIG:=config.json
 CONFIG:=/gpfs/data/molecpathlab/private_data/lyz-nf-config.json
-
+USERGROUP:=$(shell python -c 'import json; d = json.load(open("$(CONFIG)")); print(d["usergroup"])')
+dirPerm:=g+rwxs
+filePerm:=g+rw
 
 # ~~~~~ SETUP ~~~~~ #
 # isntall Nextflow; tested with version 0.30.2
@@ -39,16 +41,13 @@ run: install
 	stdoutlogfile="$${logdir}/nextflow.stdout.log" ; \
 	export NXF_WORK="$${logdir}/work" ; \
 	./nextflow -log "$${logfile}" run main.nf -with-trace -with-timeline -with-report $${NXF_PROFILE_ARG:-} --logSubDir "$(TIMESTAMP)" --externalConfigFile "$(CONFIG)" $(EP) | \
-	tee -a "$${stdoutlogfile}"
+	tee -a "$${stdoutlogfile}" ; \
+	$(MAKE) fix-permissions FIXDIR=$${logdir}
 
-# Notes on how to use bash trap to catch kill signal and pass to Nextflow
-# { \
-# trap_func(){ echo TRAP; kill $$pid ; wait "$$pid" ; } ; \
-# trap trap_func INT ; \
-# trap trap_func EXIT ; \
-# ./nextflow -log "$${logfile}" run main.nf -with-trace -with-timeline -with-report $${NXF_PROFILE_ARG:-} --logSubDir "$(TIMESTAMP)" --externalConfigFile "$(CONFIG)" $(EP) & pid=$$(echo $$!) ; \
-# echo ">>> process id: $$pid" ; \
-# echo ">>> hostname: $(HOSTNAME)" ; \
-# echo ">>> Waiting on process $$pid" ; \
-# wait "$$pid" ; }| \
-# tee -a "$${stdoutlogfile}"
+FIXDIR:=
+fix-permissions:
+	if [ -d "$(FIXDIR)" ]; then \
+	find "$(FIXDIR)" ! -group "$(USERGROUP)" -exec chgrp "$(USERGROUP)" {} \; ; \
+	find "$(FIXDIR)" -type d -exec chmod $(dirPerm) {} \; ; \
+	find "$(FIXDIR)" -type f -exec chmod $(filePerm) {} \; ; \
+	fi
