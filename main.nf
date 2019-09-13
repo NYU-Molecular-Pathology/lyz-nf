@@ -39,6 +39,7 @@ log.info "* Launch command:\n${workflow.commandLine}\n"
 
 
 // // get external configs
+def logSubDir = params.logSubDir // should be a timestamp
 def MCITdir = params.MCITdir
 def syncServer = params.syncServer
 def productionDir = params.productionDir
@@ -209,18 +210,56 @@ if ( isLocked == false ){
         enable_sync_demux_run == true
 
         script:
+        remote_base_dir = "/mnt/${params.username}/molecular/MOLECULAR/NGS580"
+        remote_run_dir = "${remote_base_dir}/${basename}"
+        remote_output_dir = "${remote_run_dir}/output"
+        remote_old_output_dir = "${remote_run_dir}/old/${logSubDir}"
         if ( workflow.profile == 'bigpurple' )
             if ( task.attempt < 2 ) // 1 on first attempt, 2 on second, etc.
                 """
-                # try to copy over files
-                ssh '${syncServer}' <<E0F
-                rsync -vrthP "${fullpath}" "/mnt/${params.username}/molecular/MOLECULAR/NGS580" \
+                # check for changed files
+                ssh '${syncServer}' > changed_files.stdout.txt <<E0F
+                rsync --dry-run --itemize-changes -rt "${fullpath}" "${remote_base_dir}" \
                 --include="${basename}" \
                 --include="${basename}/output/***" \
                 --exclude="*:*" \
                 --exclude="*"
                 E0F
+
+                num_changed_files="\$(grep '^>' changed_files.stdout.txt | wc -l)"
+                echo "num_changed_files: \${num_changed_files}"
+
+                # check if there were files changed
+                if [ "\${num_changed_files}" -ne "0" ]; then
+                    echo "moving old output"
+
+                # need to move old output to backup location, if it exists
+                ssh '${syncServer}'<<E0F
+                if [ -d "${remote_output_dir}" ]; then
+                mkdir -p "${remote_old_output_dir}" && \
+                mv "${remote_output_dir}" "${remote_old_output_dir}/" ;
+                fi
+                E0F
+
+                # copy over the new results
+                echo "starting new copy"
+                ssh '${syncServer}' <<E0F
+                rsync -rt "${fullpath}" "${remote_base_dir}" \
+                --include="${basename}" \
+                --include="${basename}/output/***" \
+                --exclude="*:*" \
+                --exclude="*"
+                E0F
+                fi
                 """
+                // # try to copy over files
+                // ssh '${syncServer}' <<E0F
+                // rsync -vrthP "${fullpath}" "${remote_base_dir}" \
+                // --include="${basename}" \
+                // --include="${basename}/output/***" \
+                // --exclude="*:*" \
+                // --exclude="*"
+                // E0F
             else
                 """
                 # an error occurred; try to fix permissions first
