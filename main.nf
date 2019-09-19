@@ -234,10 +234,12 @@ if ( isLocked == false ){
                     echo "moving old output"
 
                 # need to move old output to backup location, if it exists
+                # requested to delete output instead
                 ssh '${syncServer}'<<E0F
                 if [ -d "${remote_output_dir}" ]; then
                 mkdir -p "${remote_old_output_dir}" && \
-                mv "${remote_output_dir}" "${remote_old_output_dir}/" ;
+                mv "${remote_output_dir}" "${remote_old_output_dir}/" && \
+                rm -rf "${remote_old_output_dir}" & disown ; \
                 fi
                 E0F
 
@@ -252,14 +254,6 @@ if ( isLocked == false ){
                 E0F
                 fi
                 """
-                // # try to copy over files
-                // ssh '${syncServer}' <<E0F
-                // rsync -vrthP "${fullpath}" "${remote_base_dir}" \
-                // --include="${basename}" \
-                // --include="${basename}/output/***" \
-                // --exclude="*:*" \
-                // --exclude="*"
-                // E0F
             else
                 """
                 # an error occurred; try to fix permissions first
