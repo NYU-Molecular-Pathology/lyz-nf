@@ -238,8 +238,7 @@ if ( isLocked == false ){
                 ssh '${syncServer}'<<E0F
                 if [ -d "${remote_output_dir}" ]; then
                 mkdir -p "${remote_old_output_dir}" && \
-                mv "${remote_output_dir}" "${remote_old_output_dir}/" && \
-                rm -rf "${remote_old_output_dir}" & disown ; \
+                mv "${remote_output_dir}" "${remote_old_output_dir}/"
                 fi
                 E0F
 
@@ -254,6 +253,7 @@ if ( isLocked == false ){
                 E0F
                 fi
                 """
+                // && \ rm -rf "${remote_old_output_dir}" & disown ; \
             else
                 """
                 # an error occurred; try to fix permissions first
